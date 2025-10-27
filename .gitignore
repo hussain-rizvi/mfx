@@ -1,0 +1,71 @@
+# STM32CubeIDE build folders
+Debug/
+Release/
+
+# Build artifacts
+*.o
+*.elf
+*.bin
+*.hex
+*.list
+*.map
+*.d
+
+# STM32CubeIDE generated files
+.settings/
+.project
+.cproject
+.cproject_bakup
+
+# IDE specific files
+*.launch
+
+# Compiled libraries
+*.a
+*.lib
+
+# Debug files
+*.su
+*.s
+
+# Object files
+*.o
+*.ko
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects
+*.so
+*.dylib
+*.dll
+
+# Eclipse files
+.metadata/
+.settings/
+.project
+.cproject
+.classpath
+RemoteSystemsTempFiles/
+target
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
