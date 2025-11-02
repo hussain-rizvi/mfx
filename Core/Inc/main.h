@@ -46,6 +46,10 @@ extern "C" {
 /* User can use this section to tailor USARTx/UARTx instance used and associated
    resources */
 /* Definition for USARTx clock resources */
+
+
+/* USER CODE BEGIN EC */
+
 #define USARTx                           USART1
 #define USARTx_CLK_ENABLE()              __HAL_RCC_USART1_CLK_ENABLE()
 #define USARTx_RX_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
@@ -61,8 +65,6 @@ extern "C" {
 #define USARTx_RX_PIN                    GPIO_PIN_15
 #define USARTx_RX_GPIO_PORT              GPIOB
 #define USARTx_RX_AF                     GPIO_AF4_USART1
-
-/* USER CODE BEGIN EC */
 extern USBH_HandleTypeDef hUsbHostHS;
 /* USER CODE END EC */
 
@@ -79,6 +81,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
@@ -88,4 +91,3 @@ void Error_Handler(void);
 #endif
 
 #endif /* __MAIN_H */
-

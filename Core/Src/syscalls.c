@@ -81,7 +81,7 @@ __attribute__((weak)) int _write(int file, char *ptr, int len)
 {
   (void)file;
   int DataIdx;
-  char test[200]={0};
+  char test[500]={0};
   memcpy(test,ptr,len);
   test[len+1] = 0;
 

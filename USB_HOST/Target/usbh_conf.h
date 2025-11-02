@@ -34,18 +34,18 @@
 
 /* Exported types ------------------------------------------------------------*/
 #define USBH_MAX_NUM_ENDPOINTS                6
-#define USBH_MAX_NUM_INTERFACES               8
-#define USBH_MAX_NUM_CONFIGURATION            1
-#define USBH_MAX_NUM_SUPPORTED_CLASS          1
-#define USBH_KEEP_CFG_DESCRIPTOR              0
+#define USBH_MAX_NUM_INTERFACES               10
+#define USBH_MAX_NUM_CONFIGURATION            2
+#define USBH_MAX_NUM_SUPPORTED_CLASS          10
+#define USBH_KEEP_CFG_DESCRIPTOR              1
 #define USBH_MAX_SIZE_CONFIGURATION           0x400
-#define USBH_MAX_DATA_BUFFER                  0x200
+#define USBH_MAX_DATA_BUFFER                  0x400
 #define USBH_DEBUG_LEVEL                      2
 #define USBH_USE_OS                           0
 #define OTG_FS_POWER_SWITCH_PIN       IO_PIN_7
 /****************************************/
 /* #define for FS and HS identification */
-#define HOST_HS 		0
+#define HOST_HS 		1
 
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/

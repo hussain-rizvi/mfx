@@ -66,13 +66,14 @@ void HAL_HCD_MspInit(HCD_HandleTypeDef* hcdHandle)
   {
 #ifdef USE_USB_HS
   /* USER CODE BEGIN USB_MspInit 0 */
-
+  printf("HAL_HCD_MspInit called for USB_OTG_HS\r\n");
   /* USER CODE END USB_MspInit 0 */
 
    /* Configure USB HS GPIOs */
     __GPIOA_CLK_ENABLE();
     __GPIOB_CLK_ENABLE();
     __GPIOC_CLK_ENABLE();
+    __GPIOH_CLK_ENABLE();
 
     /* CK */
     GPIO_InitStruct.Pin = GPIO_PIN_5;
@@ -125,7 +126,7 @@ void HAL_HCD_MspInit(HCD_HandleTypeDef* hcdHandle)
     __HAL_RCC_USB1_OTG_HS_CLK_ENABLE();
 
     /* Set USBHS Interrupt to the lowest priority */
-    HAL_NVIC_SetPriority(OTG_HS_IRQn, 6, 0);
+    HAL_NVIC_SetPriority(OTG_HS_IRQn, 0, 0);
 
     /* Enable USBHS Interrupt */
     HAL_NVIC_EnableIRQ(OTG_HS_IRQn);
@@ -189,13 +190,19 @@ void HAL_HCD_MspDeInit(HCD_HandleTypeDef* hcdHandle)
   * @param  hhcd: HCD handle
   * @retval None
   */
+/* USER CODE BEGIN PV */
+volatile uint32_t sof_counter = 0;
+/* USER CODE END PV */
+
 void HAL_HCD_SOF_Callback(HCD_HandleTypeDef *hhcd)
 {
   USBH_LL_IncTimer(hhcd->pData);
+  /* Debug: increment counter to confirm SOF is running */
+  sof_counter++;
 }
 
 /**
-  * @brief  SOF callback.
+  * @brief  Connect callback.
   * @param  hhcd: HCD handle
   * @retval None
   */
@@ -205,7 +212,7 @@ void HAL_HCD_Connect_Callback(HCD_HandleTypeDef *hhcd)
 }
 
 /**
-  * @brief  SOF callback.
+  * @brief  Disconnect callback.
   * @param  hhcd: HCD handle
   * @retval None
   */
@@ -280,7 +287,7 @@ USBH_StatusTypeDef USBH_LL_Init(USBH_HandleTypeDef * phost)
   hhcd_USB_OTG_HS.Init.dma_enable = DISABLE;
   hhcd_USB_OTG_HS.Init.low_power_enable = DISABLE;
   hhcd_USB_OTG_HS.Init.phy_itface = HCD_PHY_ULPI;
-  hhcd_USB_OTG_HS.Init.Sof_enable = DISABLE;
+  hhcd_USB_OTG_HS.Init.Sof_enable = ENABLE;  // Required for HS audio
   hhcd_USB_OTG_HS.Init.speed = HCD_SPEED_HIGH;
   hhcd_USB_OTG_HS.Init.vbus_sensing_enable = DISABLE;
   hhcd_USB_OTG_HS.Init.use_external_vbus = ENABLE;

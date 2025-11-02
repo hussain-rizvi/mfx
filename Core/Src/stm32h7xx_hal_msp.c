@@ -76,12 +76,74 @@ void HAL_MspInit(void)
   /* USER CODE END MspInit 1 */
 }
 
+void HAL_SD_MspInit(SD_HandleTypeDef* hsd){
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+  if(hsd->Instance==SDMMC1)
+  {
+    /* USER CODE BEGIN SDMMC1_MspInit 0 */
+
+    /* USER CODE END SDMMC1_MspInit 0 */
+
+  /** Initializes the peripherals clock
+  */
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SDMMC;
+    PeriphClkInitStruct.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+
+        /* Peripheral clock enable */
+        __HAL_RCC_SDMMC1_CLK_ENABLE();
+        __HAL_RCC_GPIOC_CLK_ENABLE();
+        __HAL_RCC_GPIOD_CLK_ENABLE();
+        /**SDMMC1 GPIO Configuration
+        PC10     ------> SDMMC1_D2
+        PD2     ------> SDMMC1_CMD
+        PC12     ------> SDMMC1_CK
+        PC11     ------> SDMMC1_D3
+        PC9     ------> SDMMC1_D1
+        PC8     ------> SDMMC1_D0
+        */
+        GPIO_InitStruct.Pin = GPIO_PIN_12;  // Clock - no pull
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF12_SDMMC1;
+        HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+        GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11;  // D0-D3 - pull up
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF12_SDMMC1;
+        HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+        GPIO_InitStruct.Pin = GPIO_PIN_2;  // CMD - pull up
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF12_SDMMC1;
+        HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+    
+        /* SDMMC1 interrupt Init */
+        HAL_NVIC_SetPriority(SDMMC1_IRQn, 0, 0);
+        HAL_NVIC_EnableIRQ(SDMMC1_IRQn);
+        /* USER CODE BEGIN SDMMC1_MspInit 1 */
+    
+        /* USER CODE END SDMMC1_MspInit 1 */
+  }
+}
+
 /**
 * @brief UART MSP Initialization
-* This function configures the hardware resources used in this example
-* @param huart: UART handle pointer
-* @retval None
-*/
+  * This function configures the hardware resources used in this example
+  * @param hsd: SD handle pointer
+  * @retval None
+  */
 void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 {
   GPIO_InitTypeDef  GPIO_InitStruct = {0};
@@ -111,34 +173,64 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
   HAL_GPIO_Init(USARTx_TX_GPIO_PORT, &GPIO_InitStruct);
 
   /* UART RX GPIO pin configuration  */
-  GPIO_InitStruct.Pin = USARTx_RX_PIN;
-  GPIO_InitStruct.Alternate = USARTx_RX_AF;
+    GPIO_InitStruct.Pin = USARTx_RX_PIN;
+    GPIO_InitStruct.Alternate = USARTx_RX_AF;
 
-  HAL_GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStruct);
+    HAL_GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStruct);
+
+}
+void HAL_SD_MspDeInit(SD_HandleTypeDef* hsd)
+{
+  if(hsd->Instance==SDMMC1)
+  {
+    /* USER CODE BEGIN SDMMC1_MspDeInit 0 */
+
+    /* USER CODE END SDMMC1_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_SDMMC1_CLK_DISABLE();
+        /**SDMMC1 GPIO Configuration
+    PC10     ------> SDMMC1_D2
+    PD2     ------> SDMMC1_CMD
+    PC12     ------> SDMMC1_CK
+    PC11     ------> SDMMC1_D3
+    PC9     ------> SDMMC1_D1
+    PC8     ------> SDMMC1_D0
+    */
+    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_10|GPIO_PIN_12|GPIO_PIN_11|GPIO_PIN_9
+      |GPIO_PIN_8);
+
+  HAL_GPIO_DeInit(GPIOD, GPIO_PIN_2);
+
+  /* SDMMC1 interrupt DeInit */
+  HAL_NVIC_DisableIRQ(SDMMC1_IRQn);
+  }
+/* USER CODE BEGIN SDMMC1_MspDeInit 1 */
+
+/* USER CODE END SDMMC1_MspDeInit 1 */
 
 }
 
+
 /**
-* @brief UART MSP De-Initialization
-* This function freeze the hardware resources used in this example
-* @param huart: UART handle pointer
-* @retval None
-*/
+  * @brief SD MSP De-Initialization
+  * This function freeze the hardware resources used in this example
+  * @param hsd: SD handle pointer
+  * @retval None
+  */
 void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
-{
-/*##-1- Reset peripherals ##################################################*/
+  {
+    /*##-1- Reset peripherals ##################################################*/
   USARTx_FORCE_RESET();
   USARTx_RELEASE_RESET();
 
-  /*##-2- Disable peripherals and GPIO Clocks ################################*/
+    /*##-2- Disable peripherals and GPIO Clocks ################################*/
   /* Configure UART Tx as alternate function  */
-  HAL_GPIO_DeInit(USARTx_TX_GPIO_PORT, USARTx_TX_PIN);
-  /* Configure UART Rx as alternate function  */
-  HAL_GPIO_DeInit(USARTx_RX_GPIO_PORT, USARTx_RX_PIN);
+    HAL_GPIO_DeInit(USARTx_TX_GPIO_PORT, USARTx_TX_PIN);
+    /* Configure UART Rx as alternate function  */
+    HAL_GPIO_DeInit(USARTx_RX_GPIO_PORT, USARTx_RX_PIN);
 
 }
 
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-

@@ -19,11 +19,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 #include "usb_host.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbh_audio.h"
+#include "usb_audio_player.h"
 #include <math.h>
 
 extern USBH_HandleTypeDef hUsbHostHS;
@@ -48,6 +50,8 @@ extern ApplicationTypeDef Appli_state;
 
 UART_HandleTypeDef UartHandle;
 
+SD_HandleTypeDef hsd1;
+
 /* USER CODE BEGIN PV */
 #define SAMPLE_RATE 48000
 #define TONE_FREQUENCY 440  // A4 note in Hz
@@ -66,13 +70,17 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_SDMMC1_SD_Init(void);
 void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
 void GenerateTestTone(uint8_t *buffer, uint32_t buffer_size);
 void StartTestTone(void);
+void ListFilesOnSD(void);
+void USBAudioPlayer_FrequencySetCallback(void);
 /* USER CODE END PFP */
 
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 /**
   * @brief Generate a sine wave test tone
@@ -179,8 +187,14 @@ void StartTestTone(void)
 void USBH_AUDIO_BufferEmptyCallback(USBH_HandleTypeDef *phost)
 {
   UNUSED(phost);
-  GenerateTestTone(audio_buffer, sizeof(audio_buffer));
-  USBH_AUDIO_Play(&hUsbHostHS, audio_buffer, sizeof(audio_buffer));
+  
+  static uint32_t callback_count = 0;
+  if ((callback_count++ % 100) == 0) {
+    printf("BufferEmpty callback #%lu\r\n", callback_count);
+  }
+  
+  // Use MP3 player instead of test tone
+  USBAudioPlayer_BufferEmptyCallback();
   BSP_LED_Toggle(LED3);
 }
 
@@ -188,11 +202,69 @@ void USBH_AUDIO_BufferEmptyCallback(USBH_HandleTypeDef *phost)
   * @brief Frequency set callback
   * @param phost: USB Host handle
   */
-void USBH_AUDIO_FrequencySetCallback(USBH_HandleTypeDef *phost)
+void USBH_AUDIO_FrequencySet(USBH_HandleTypeDef *phost)
 {
   UNUSED(phost);
+  printf("*** USBH_AUDIO_FrequencySet CALLBACK CALLED! ***\r\n");
   frequency_set_complete = 1;
   BSP_LED_On(LED2);
+  
+  // Notify audio player that frequency is set
+  USBAudioPlayer_FrequencySetCallback();
+}
+
+/**
+  * @brief List all files in the SD card root directory
+  */
+void ListFilesOnSD(void)
+{
+  DIR dir;
+  FILINFO fno;
+  FRESULT res;
+  
+  printf("\r\n=== SD Card File Listing ===\r\n");
+  
+  // Open root directory
+  res = f_opendir(&dir, "/");
+  if (res != FR_OK)
+  {
+    printf("Failed to open root directory. Error: %d\r\n", res);
+    return;
+  }
+  
+  uint32_t file_count = 0;
+  
+  // Read directory entries
+  while (1)
+  {
+    res = f_readdir(&dir, &fno);
+    if (res != FR_OK || fno.fname[0] == 0)
+    {
+      break;  // End of directory or error
+    }
+    
+    if (fno.fname[0] == '.')
+    {
+      continue;  // Skip hidden files
+    }
+    
+    file_count++;
+    
+    // Determine file type
+    if (fno.fattrib & AM_DIR)
+    {
+      printf("[DIR ]  %s\r\n", fno.fname);
+    }
+    else
+    {
+      printf("[FILE]  %s  (%lu bytes)\r\n", fno.fname, fno.fsize);
+    }
+  }
+  
+  printf("\r\nTotal files/directories: %lu\r\n", file_count);
+  printf("=== End of Listing ===\r\n\r\n");
+  
+  f_closedir(&dir);
 }
 
 /* USER CODE END 0 */
@@ -220,6 +292,7 @@ void USBH_AUDIO_FrequencySetCallback(USBH_HandleTypeDef *phost)
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -258,11 +331,27 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
-
+ 
   HAL_PWREx_EnableUSBVoltageDetector();
   MX_USB_HOST_Init();
-
+  MX_SDMMC1_SD_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+
+  // Mount SD card and list files
+  if (f_mount(&SDFatFS, SDPath, 1) == FR_OK)
+  {
+    printf("SD card mounted successfully!\r\n");
+    HAL_Delay(100);
+    ListFilesOnSD();
+    
+    // Initialize audio player
+    USBAudioPlayer_Init();
+  }
+  else
+  {
+    printf("Failed to mount SD card!\r\n");
+  }
 
   /* USER CODE END 2 */
 
@@ -270,9 +359,40 @@ int main(void)
 
   while (1)
   {
-    /* USER CODE BEGIN WHILE */
+  /* USER CODE BEGIN WHILE */
     MX_USB_HOST_Process();
-    StartTestTone();
+    
+    // Debug: Print USB Host state periodically and check audio state
+    static uint32_t state_print_count = 0;
+    static uint32_t last_gState = 0, last_EnumState = 0, last_Appli_state = 0;
+    if (++state_print_count % 10000 == 0) {
+        extern USBH_HandleTypeDef hUsbHostHS;
+        
+        // Only print when state changes
+        if (hUsbHostHS.gState != last_gState || hUsbHostHS.EnumState != last_EnumState || Appli_state != last_Appli_state) {
+            printf("USB Host State: gState=%d, EnumState=%d, Appli_state=%d\r\n", 
+                   hUsbHostHS.gState, hUsbHostHS.EnumState, Appli_state);
+            last_gState = hUsbHostHS.gState;
+            last_EnumState = hUsbHostHS.EnumState;
+            last_Appli_state = Appli_state;
+        }
+        
+        // Debug: Check audio playback state - just print occasionally
+        // The detailed state will be printed in the callbacks
+    }
+    
+    // Process audio player when USB is ready
+    if (Appli_state == APPLICATION_READY)
+    {
+      USBAudioPlayer_Process();
+      
+      // Auto-start when ready
+      if (USBAudioPlayer_GetState() == PLAYER_READY)
+      {
+        USBAudioPlayer_Start();
+        BSP_LED_On(LED1);
+      }
+    }
     
     /* USER CODE END WHILE */
   }
@@ -366,13 +486,13 @@ void SystemClock_Config(void)
           To do this please uncomment the following code
   */
 
-  /*
+  // /*
   __HAL_RCC_CSI_ENABLE() ;
 
   __HAL_RCC_SYSCFG_CLK_ENABLE() ;
 
   HAL_EnableCompensationCell();
-  */
+  // */
 }
 
 /**
@@ -380,6 +500,28 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
+  static void MX_SDMMC1_SD_Init(void){
+    hsd1.Instance = SDMMC1;
+    hsd1.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
+    hsd1.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
+    hsd1.Init.BusWide = SDMMC_BUS_WIDE_4B;
+    hsd1.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
+    hsd1.Init.ClockDiv = 2;  // Divide clock for stability (SD max 400kHz init)
+    
+    // Add delay to allow SD card to stabilize after power on
+    HAL_Delay(200);
+    
+    if (HAL_SD_Init(&hsd1) != HAL_OK)
+    {
+      printf("SD Card HAL_SD_Init failed!\r\n");
+      printf("SD Error Code: 0x%08lX\r\n", (unsigned long)hsd1.ErrorCode);
+      // Don't call Error_Handler - continue without SD card
+      return;
+    }
+}
+
+
+
 static void MX_USART1_UART_Init(void)
 {
   /* USER CODE BEGIN USART1_Init 0 */
@@ -423,10 +565,29 @@ static void MX_USART1_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOI_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
+  /*Configure GPIO pin : PF10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -539,4 +700,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
