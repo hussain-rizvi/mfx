@@ -489,6 +489,19 @@ void USBAudioPlayer_Process(void)
   */
 static void PlayNextWAVFile(void)
 {
+    /* Stop USB audio playback before closing file to prevent hardfault */
+    if (wav_playback_started && Appli_state == APPLICATION_READY) {
+        USBH_AUDIO_Stop(&hUsbHostHS);
+        /* Wait for USB audio to properly stop (play_state should return to IDLE = 5) */
+        if (hUsbHostHS.pActiveClass != NULL && hUsbHostHS.pActiveClass->pData != NULL) {
+            AUDIO_HandleTypeDef *AUDIO_Handle = (AUDIO_HandleTypeDef *) hUsbHostHS.pActiveClass->pData;
+            uint32_t timeout = HAL_GetTick() + 100; /* 100ms timeout */
+            while (AUDIO_Handle->play_state != 5 && HAL_GetTick() < timeout) {
+                /* Wait for play_state to return to IDLE (5) */
+            }
+        }
+    }
+    
     /* Close current file */
     if (fileOpen) {
         f_close(&currentFile);
@@ -497,7 +510,7 @@ static void PlayNextWAVFile(void)
     
     /* Reset WAV playback state */
     wav_playback_started = false;
-    frequencySetComplete = false;
+    /* Note: frequencySetComplete will be reset after new file header is parsed */
     wav_buffer_in_ptr = 0;
     wav_buffer_out_ptr = 0;
     
