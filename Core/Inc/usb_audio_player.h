@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : usb_audio_player.h
-  * @brief          : Simple MP3 player for USB audio output
+  * @brief          : USB Audio Player for WAV playback
   ******************************************************************************
   */
 
@@ -11,7 +11,6 @@
 
 #include "main.h"
 #include "fatfs.h"
-#include "mp3dec.h"
 #include "usbh_audio.h"
 #include <stdbool.h>
 
@@ -31,7 +30,6 @@ typedef enum {
 /* File types */
 typedef enum {
     FILE_NONE = 0,
-    FILE_MP3,
     FILE_WAV
 } FileType;
 

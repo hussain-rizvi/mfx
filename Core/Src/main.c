@@ -188,14 +188,7 @@ void USBH_AUDIO_BufferEmptyCallback(USBH_HandleTypeDef *phost)
 {
   UNUSED(phost);
   
-  static uint32_t callback_count = 0;
-  if ((callback_count++ % 100) == 0) {
-    printf("BufferEmpty callback #%lu\r\n", callback_count);
-  }
-  
-  // Use MP3 player instead of test tone
   USBAudioPlayer_BufferEmptyCallback();
-  BSP_LED_Toggle(LED3);
 }
 
 /**
@@ -205,9 +198,7 @@ void USBH_AUDIO_BufferEmptyCallback(USBH_HandleTypeDef *phost)
 void USBH_AUDIO_FrequencySet(USBH_HandleTypeDef *phost)
 {
   UNUSED(phost);
-  printf("*** USBH_AUDIO_FrequencySet CALLBACK CALLED! ***\r\n");
   frequency_set_complete = 1;
-  BSP_LED_On(LED2);
   
   // Notify audio player that frequency is set
   USBAudioPlayer_FrequencySetCallback();
@@ -361,25 +352,6 @@ int main(void)
   {
   /* USER CODE BEGIN WHILE */
     MX_USB_HOST_Process();
-    
-    // Debug: Print USB Host state periodically and check audio state
-    static uint32_t state_print_count = 0;
-    static uint32_t last_gState = 0, last_EnumState = 0, last_Appli_state = 0;
-    if (++state_print_count % 10000 == 0) {
-        extern USBH_HandleTypeDef hUsbHostHS;
-        
-        // Only print when state changes
-        if (hUsbHostHS.gState != last_gState || hUsbHostHS.EnumState != last_EnumState || Appli_state != last_Appli_state) {
-            printf("USB Host State: gState=%d, EnumState=%d, Appli_state=%d\r\n", 
-                   hUsbHostHS.gState, hUsbHostHS.EnumState, Appli_state);
-            last_gState = hUsbHostHS.gState;
-            last_EnumState = hUsbHostHS.EnumState;
-            last_Appli_state = Appli_state;
-        }
-        
-        // Debug: Check audio playback state - just print occasionally
-        // The detailed state will be printed in the callbacks
-    }
     
     // Process audio player when USB is ready
     if (Appli_state == APPLICATION_READY)
